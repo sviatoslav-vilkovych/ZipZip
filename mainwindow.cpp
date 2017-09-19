@@ -45,10 +45,10 @@ void MainWindow::on_process_buttonBox_clicked(QAbstractButton *button)
         fileModel = new QFileSystemModel(this);
         fileModel->setFilter(QDir::NoDotAndDotDot | QDir::Files);
         fileModel->setRootPath(path);
+
         connect(fileModel, SIGNAL(directoryLoaded(QString)), this, SLOT(fill_path_list()));
 
-        //JlCompress::compressFile("C:/test.zip", "C:/test.txt");
-        archivingFiles();
+
     }
 }
 
@@ -60,9 +60,12 @@ void MainWindow::fill_path_list()
     for (int row = 0; row < numRows; ++row) {
         QModelIndex childIndex = fileModel->index(row, 0, parentIndex);
         QString fileName = fileModel->data(childIndex).toString();
-        // масив_токенів = стрічка.спліт(); масив_токенів.викинути_останній(); нова_стрічка = масив_токенів.склеяти();
-        pathHash.insert(fileName.split('.').first(),fileName);
+        QStringList without_expansion = fileName.split('.');
+        without_expansion.removeLast();
+        pathHash.insert(without_expansion.join(""), fileName);
     }
+
+    archivingFiles();
 }
 int MainWindow::archivingFiles()
 {
@@ -70,20 +73,34 @@ int MainWindow::archivingFiles()
     QString archiveExtension;
     switch (ui->extenshion_comboBox->currentIndex())
     {
-    case 1:
+    case 0:
         archiveExtension.append(".rar");
         break;
-    case 2:
+    case 1:
         archiveExtension.append(".zip");
         break;
     }
 
     bool mode = (ui->crSubfolder_radioButton->isChecked())?1:0; // 0 - delete files, 1 - create subfolder
 
-    auto it_pathHashEnd = pathHash.end();
-    for(auto it_pathHash = pathHash.begin(); it_pathHash != it_pathHashEnd; ++it_pathHash)
-    {
+    QList<QString> keysList = pathHash.keys();
 
+    for(int i = 0; i< keysList.length(); ++i)
+    {
+        QStringList withSameName;
+        for(auto it_pathHashFiltered = pathHash.find(keysList.value(i)), it_pathHashFilteredEnd = pathHash.end(); it_pathHashFiltered != it_pathHashFilteredEnd && it_pathHashFiltered.key() == keysList.value(i);)
+        {
+            // let's put every file same key into one List.
+            withSameName.append(path+"/"+it_pathHashFiltered.value());
+            ++it_pathHashFiltered;
+        }
+
+        JlCompress::compressFiles(path+"/"+keysList.value(i)+archiveExtension, withSameName);
+
+        // clear list for files with new name and increasing 'i' to find these new files
+        pathHash.remove(keysList.value(i));
+        withSameName.clear();
+        ++i;
     }
 
     return 0;
