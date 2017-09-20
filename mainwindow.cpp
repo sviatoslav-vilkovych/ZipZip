@@ -62,7 +62,7 @@ void MainWindow::fill_path_list()
         QString fileName = fileModel->data(childIndex).toString();
         QStringList without_expansion = fileName.split('.');
         without_expansion.removeLast();
-        pathHash.insert(without_expansion.join(""), fileName);
+        pathHash.insertMulti(without_expansion.join("."), fileName);
     }
 
     archivingFiles();
@@ -81,14 +81,15 @@ int MainWindow::archivingFiles()
         break;
     }
 
-    bool mode = (ui->crSubfolder_radioButton->isChecked())?1:0; // 0 - delete files, 1 - create subfolder
+    // bool mode = (ui->crSubfolder_radioButton->isChecked())?1:0; // 0 - delete files, 1 - create subfolder
 
-    QList<QString> keysList = pathHash.keys();
+    QList<QString> keysList = pathHash.uniqueKeys();
+    auto it_pathHashEnd = pathHash.end();
 
-    for(int i = 0; i< keysList.length(); ++i)
+    for(int i = 0; i < keysList.length();)
     {
         QStringList withSameName;
-        for(auto it_pathHashFiltered = pathHash.find(keysList.value(i)), it_pathHashFilteredEnd = pathHash.end(); it_pathHashFiltered != it_pathHashFilteredEnd && it_pathHashFiltered.key() == keysList.value(i);)
+        for(auto it_pathHashFiltered = pathHash.find(keysList[i]); it_pathHashFiltered != it_pathHashEnd && it_pathHashFiltered.key() == keysList[i];)
         {
             // let's put every file same key into one List.
             withSameName.append(path+"/"+it_pathHashFiltered.value());
@@ -102,6 +103,8 @@ int MainWindow::archivingFiles()
         withSameName.clear();
         ++i;
     }
+
+    ui->process_progressBar->setValue(100);
 
     return 0;
 }
