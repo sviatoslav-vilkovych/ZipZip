@@ -17,6 +17,10 @@ MainWindow::MainWindow(QWidget *parent) :
     extensionsList.append("*.rar");
     extensionsList.append("*.zip");
     ui->extenshion_comboBox->addItems(extensionsList);
+
+    num_of_archiving_files = 0;
+    num_of_on_buttonBox = 0;
+
 }
 
 MainWindow::~MainWindow()
@@ -40,24 +44,28 @@ void MainWindow::on_browse_pushButton_clicked()
 
 void MainWindow::on_process_buttonBox_clicked(QAbstractButton *button)
 {
+
+
     if((QPushButton*) button == ui->process_buttonBox->button(QDialogButtonBox::Ok))
     {
         fileModel = new QFileSystemModel(this);
+
+        ++num_of_on_buttonBox;
+        connect(fileModel, SIGNAL(directoryLoaded(QString)), this, SLOT(fill_path_list(QString)),Qt::DirectConnection);
+
         fileModel->setFilter(QDir::NoDotAndDotDot | QDir::Files);
         fileModel->setRootPath(path);
-
-        connect(fileModel, SIGNAL(directoryLoaded(QString)), this, SLOT(fill_path_list()));
-
 
     }
 }
 
-void MainWindow::fill_path_list()
+void MainWindow::fill_path_list(const QString& path_)
 {
-    QModelIndex parentIndex = fileModel->index(path);
+    QModelIndex parentIndex = fileModel->index(path_);
     int numRows = fileModel->rowCount(parentIndex);
 
-    for (int row = 0; row < numRows; ++row) {
+    for (int row = 0; row < numRows; ++row)
+    {
         QModelIndex childIndex = fileModel->index(row, 0, parentIndex);
         QString fileName = fileModel->data(childIndex).toString();
         QStringList without_expansion = fileName.split('.');
@@ -65,10 +73,17 @@ void MainWindow::fill_path_list()
         pathHash.insertMulti(without_expansion.join("."), fileName);
     }
 
-    archivingFiles();
+    // it is very bad solution, but I don't know why connection calls fill_path_list()
+    // so many times. Glory!
+    if(num_of_on_buttonBox)
+    {
+        --num_of_on_buttonBox;
+        archivingFiles();
+    }
 }
 int MainWindow::archivingFiles()
 {
+    num_of_archiving_files++;
 
     QString archiveExtension;
     switch (ui->extenshion_comboBox->currentIndex())
@@ -81,7 +96,7 @@ int MainWindow::archivingFiles()
         break;
     }
 
-    // bool mode = (ui->crSubfolder_radioButton->isChecked())?1:0; // 0 - delete files, 1 - create subfolder
+    bool mode = (ui->crSubfolder_radioButton->isChecked())?1:0; // 0 - delete files, 1 - create subfolder
 
     QList<QString> keysList = pathHash.uniqueKeys();
     auto it_pathHashEnd = pathHash.end();
@@ -97,7 +112,10 @@ int MainWindow::archivingFiles()
         }
 
         JlCompress::compressFiles(path+"/"+keysList.value(i)+archiveExtension, withSameName);
-
+        for(auto it_filesList = withSameName.begin();it_filesList != withSameName.end();++it_filesList)
+        {
+            QFile::remove(*it_filesList);
+        }
         // clear list for files with new name and increasing 'i' to find these new files
         pathHash.remove(keysList.value(i));
         withSameName.clear();
@@ -105,6 +123,7 @@ int MainWindow::archivingFiles()
     }
 
     ui->process_progressBar->setValue(100);
-
+    ui->path_lineEdit->setText(QString::number(num_of_archiving_files)+" "+QString::number(num_of_on_buttonBox));
+    disconnect();
     return 0;
 }

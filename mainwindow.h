@@ -7,7 +7,7 @@
 #include <QList>
 #include "browse.h"
 #include <QFileSystemModel>
-
+#include <QFile>
 class Browse;
 
 namespace Ui {
@@ -28,9 +28,7 @@ private slots:
     void on_browse_pushButton_clicked();
 
     void on_process_buttonBox_clicked(QAbstractButton *button);
-    void fill_path_list();
-signals:
-    //void directoryLoaded(QString);
+    void fill_path_list(const QString&);
 private:
     int archivingFiles();
 
@@ -40,6 +38,9 @@ private:
     QList<QString> extensionsList;
     QFileSystemModel *fileModel;
     QHash<QString,QString> pathHash;
+
+   int num_of_archiving_files;
+   int num_of_on_buttonBox;
 };
 
 #endif // MAINWINDOW_H
